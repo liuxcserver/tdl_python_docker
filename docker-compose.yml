@@ -1,6 +1,6 @@
 services:
   tdl_python_docker:
-    image: ghcr.io/liuxcserver/tdl_python_docker:master
+    image: liuxcserver/tdl_python_docker:latest
     container_name: tdl_python_docker
     volumes:
       - /vol1/1000/space/docker/tdl/config:/root/.tdl # 保持配置持久化
