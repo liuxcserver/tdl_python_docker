@@ -6,6 +6,8 @@ import configparser
 # 配置基础日志（同时写入文件）
 import logging
 
+SOURCE_PATH = os.getenv("SOURCE_PATH", '/source_path')
+TARGET_PATH = os.getenv("TARGET_PATH", '/target_path')
 logger = logging.getLogger('my_app')
 
 def push_log(message):
@@ -51,10 +53,10 @@ def run_command_and_log(cmd):
     push_log("✅ 命令执行完毕。")
 
 
-def process_channel(channel_id, source_path, target_path, script_dir):
+def process_channel(channel_id, script_dir):
     """处理单个频道的下载逻辑"""
-    channel_source_dir = os.path.join(source_path, str(channel_id))
-    channel_target_dir = os.path.join(target_path, str(channel_id))
+    channel_source_dir = os.path.join(SOURCE_PATH, str(channel_id))
+    channel_target_dir = os.path.join(TARGET_PATH, str(channel_id))
 
     os.makedirs(channel_source_dir, exist_ok=True)
 
@@ -99,9 +101,9 @@ def process_channel(channel_id, source_path, target_path, script_dir):
     push_log(f"频道 {channel_id} 下载完成。")
 
 
-def process_urls(urls,  source_path):
+def process_urls(urls):
     """处理 URL 的下载逻辑"""
-    default_source_path = os.path.join(source_path, "default")
+    default_source_path = os.path.join(SOURCE_PATH, "default")
     os.makedirs(default_source_path, exist_ok=True)
 
     push_log(f"开始下载 {len(urls)} 个 URL 到 {default_source_path}...")
@@ -123,24 +125,22 @@ def run_tdl(config):
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
     try:
-        source_path = config.get('tdl_source_path')
-        target_path = config.get('tdl_target_path')
         channels = config.get('tdl_channels')
         urls = config.get('tdl_urls')
 
-        os.makedirs(source_path, exist_ok=True)
-        os.makedirs(target_path, exist_ok=True)
+        os.makedirs(SOURCE_PATH, exist_ok=True)
+        os.makedirs(TARGET_PATH, exist_ok=True)
 
         # 处理 Channel 下载
         channel_ids = [cid.strip() for cid in channels.split(',')]
         for cid in channel_ids:
             if cid:  # 防止空字符串
-                process_channel(cid, source_path, target_path, script_dir)
+                process_channel(cid, script_dir)
 
         # 处理 URL 下载
         urls = [url.strip() for url in urls.split(',')]
         if urls and urls[0]:  # 防止空字符串
-            process_urls(urls, source_path)
+            process_urls(urls, SOURCE_PATH)
 
         push_log("🎉 所有下载任务执行完毕！")
     except Exception as e:
