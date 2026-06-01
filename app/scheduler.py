@@ -39,7 +39,7 @@ def my_scheduled_task():
                 # 遍历该频道文件夹下的所有文件
                 for filename in os.listdir(source_channel_dir):
                     # 核心需求：排除后缀为 .tdl 的文件
-                    if filename.endswith('.tdl'):
+                    if filename.endswith('.tmp'):
                         continue
 
                     source_file = os.path.join(source_channel_dir, filename)

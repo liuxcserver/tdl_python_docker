@@ -157,5 +157,6 @@ if __name__ == '__main__':
     if START_TASK:
         task_thread = threading.Thread(target=scheduler_loop, args=(1800,), daemon=True)
         task_thread.start()
+        app_logger.info("========== 上传任务已开启 ==========")
 
     app.run(host='0.0.0.0', port=8888, debug=True)
