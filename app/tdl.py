@@ -9,20 +9,12 @@ from queue import Queue
 log_queue = Queue()
 
 # 配置基础日志（同时写入文件）
-logging.basicConfig(
-    filename='tdl_execution.log',
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    encoding='utf-8'
-)
-
+import logging
+logger = logging.getLogger('my_app')
 
 def push_log(message):
     """将日志同时写入文件、打印到控制台、推送到前端队列"""
-    print(message)
-    logging.info(message)
-    log_queue.put(message)
-
+    logger.info(message)
 
 def load_config(config_file):
     """读取配置文件"""
@@ -131,7 +123,7 @@ def process_urls(urls,  source_path):
 
 def run_tdl():
     if True:
-        push_log('所有下载任务执行完毕！')
+        push_log('所有下载任务执行完毕1！')
         return
 
     """对外暴露的纯业务执行入口"""
