@@ -13,6 +13,7 @@ TASK_LOCK = threading.Lock()
 secret_key = os.getenv("SECRET_KEY", '123456')
 LOG_PATH = os.getenv("LOG_PATH", 'tdl.log')
 CONFIG_PATH = os.getenv("CONFIG_PATH", 'tdl.ini')
+START_TASK = os.getenv("START_TASK", False)
 
 def load_global_config():
     """读取配置文件并更新到 Flask 的全局 app.config 中"""
@@ -67,7 +68,7 @@ def get_last_n_lines(filepath, n=1000):
 
 
 # ================= 业务逻辑 =================
-def run_download_task():
+def run_download_task(config):
     global IS_TASK_RUNNING
     try:
         # 任务开始前清空日志
@@ -76,7 +77,7 @@ def run_download_task():
         app_logger.info("========== 任务开始执行 ==========")
 
         # 运行你的核心任务
-        run_tdl()
+        run_tdl(config)
 
         app_logger.info("========== 任务执行成功 ==========")
     except Exception as e:
@@ -109,7 +110,7 @@ def execute():
         if IS_TASK_RUNNING:
             return jsonify({"status": "error", "message": "任务正在运行中！"})
         IS_TASK_RUNNING = True
-        task_thread = threading.Thread(target=run_download_task)
+        task_thread = threading.Thread(target=run_download_task(app.config))
         task_thread.daemon = True
         task_thread.start()
 
@@ -150,9 +151,10 @@ def get_logs():
 
 
 if __name__ == '__main__':
+    # 加载配置
     load_global_config()
     # 创建并启动定时任务线程
-    if app.config.get('tdl_scheduler', 'false').lower() == 'true':
+    if START_TASK:
         task_thread = threading.Thread(target=scheduler_loop, args=(1800,), daemon=True)
         task_thread.start()
 

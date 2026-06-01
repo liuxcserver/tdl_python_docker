@@ -5,6 +5,7 @@ import configparser
 
 # 配置基础日志（同时写入文件）
 import logging
+
 logger = logging.getLogger('my_app')
 
 def push_log(message):
@@ -116,34 +117,30 @@ def process_urls(urls,  source_path):
     push_log("URL 下载完成。")
 
 
-def run_tdl():
+def run_tdl(config):
     """对外暴露的纯业务执行入口"""
     push_log("📋 开始执行下载任务...")
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
     try:
-        config = load_config('tdl.ini')
-        source_path = config['source_path']
-        target_path = config['target_path']
+        source_path = config.get('tdl_source_path')
+        target_path = config.get('tdl_target_path')
+        channels = config.get('tdl_channels')
+        urls = config.get('tdl_urls')
 
         os.makedirs(source_path, exist_ok=True)
         os.makedirs(target_path, exist_ok=True)
 
         # 处理 Channel 下载
-        channel_ids = [cid.strip() for cid in config['channel'].split(',')]
+        channel_ids = [cid.strip() for cid in channels.split(',')]
         for cid in channel_ids:
             if cid:  # 防止空字符串
                 process_channel(cid, source_path, target_path, script_dir)
 
         # 处理 URL 下载
-        urls = [url.strip() for url in config['url'].split(',')]
+        urls = [url.strip() for url in urls.split(',')]
         if urls and urls[0]:  # 防止空字符串
             process_urls(urls, source_path)
-
-        # 处理收藏下载
-        favorites = config['favorites']
-        if favorites:
-            process_channel('favorites', source_path, target_path, script_dir)
 
         push_log("🎉 所有下载任务执行完毕！")
     except Exception as e:
