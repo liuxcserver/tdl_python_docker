@@ -1,4 +1,4 @@
-FROM iyear/tdl:0.20.3
+FROM iyear/tdl:latest
 
 RUN apk add --no-cache python3 py3-pip
 

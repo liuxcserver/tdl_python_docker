@@ -2,11 +2,6 @@ import os
 import json
 import subprocess
 import configparser
-import logging
-from queue import Queue
-
-# 全局队列，用于存放实时日志，供 app.py 中的 WebSocket 读取
-log_queue = Queue()
 
 # 配置基础日志（同时写入文件）
 import logging
@@ -127,7 +122,7 @@ def run_tdl():
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
     try:
-        config = load_config('tdl.conf')
+        config = load_config('tdl.ini')
         source_path = config['source_path']
         target_path = config['target_path']
 
@@ -143,7 +138,7 @@ def run_tdl():
         # 处理 URL 下载
         urls = [url.strip() for url in config['url'].split(',')]
         if urls and urls[0]:  # 防止空字符串
-            process_urls(urls, source_path, target_path, script_dir)
+            process_urls(urls, source_path)
 
         # 处理收藏下载
         favorites = config['favorites']

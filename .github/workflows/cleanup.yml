@@ -1,0 +1,26 @@
+name: Cleanup old GHCR SHA images
+on:
+  workflow_dispatch:  # 手动触发
+  schedule:
+    - cron: '0 0 * * *'
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old SHA images
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: tdl_python_docker
+          package-type: container
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # 只删除以 sha- 开头的标签
+          tag-regex: '^sha-.*'
+          # 保留最新 5 个，删除更早的
+          min-versions-to-keep: 5
+          # 可选：删除多少天前的
+          # delete-older-than: 7d
