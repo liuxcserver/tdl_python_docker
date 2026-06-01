@@ -122,10 +122,6 @@ def process_urls(urls,  source_path):
 
 
 def run_tdl():
-    if True:
-        push_log('所有下载任务执行完毕1！')
-        return
-
     """对外暴露的纯业务执行入口"""
     push_log("📋 开始执行下载任务...")
     script_dir = os.path.dirname(os.path.abspath(__file__))
