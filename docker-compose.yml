@@ -1,0 +1,20 @@
+services:
+  tdl_python_docker:
+    image: ghcr.io/liuxcserver/tdl_python_docker:master
+    container_name: tdl_python_docker
+    volumes:
+      - /vol1/1000/space/docker/tdl/config:/root/.tdl # 保持配置持久化
+      - /vol1/1000/space/docker/tdl_python_docker/download:/source_path
+      - /vol02/1001-1-900c4d77/TDL:/target_path
+    ports:
+      - "18888:8888"
+    network_mode: bridge
+    restart: unless-stopped
+    environment:
+      - TDL_PROXY=socks5://liuxc:lxc8722@192.168.100.100:41080
+      - TDL_THREADS=4    # 同时下载的任务数量
+      - TDL_LIMIT=4      # 单个任务的下载线程数
+      - SECRET_KEY=5952   # 任务开启密码
+      - START_TASK=True		# 上传任务是否开启
+      - SOURCE_PATH=/source_path #本地下载目录
+      - TARGET_PATH=/target_path #远端上传目录

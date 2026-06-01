@@ -2,7 +2,9 @@ import subprocess
 import time
 import os
 from datetime import datetime
-from flask import current_app
+
+SOURCE_PATH = os.getenv("SOURCE_PATH", '/source_path')
+TARGET_PATH = os.getenv("TARGET_PATH", '/target_path')
 
 def scheduler_loop(interval_seconds=1800):
     while True:
@@ -16,18 +18,14 @@ def my_scheduled_task():
     """每半小时执行一次的业务逻辑"""
     print(f"[定时任务] 开始执行... {datetime.now()}")
     try:
-        # 获取配置
-        source_path = current_app.config.get('tdl_source_path')
-        target_path = current_app.config.get('tdl_target_path')
-
         # 遍历 source_path 下的所有 channelid 文件夹
-        if not os.path.exists(source_path):
-            print(f"源目录 {source_path} 不存在！")
+        if not os.path.exists(SOURCE_PATH):
+            print(f"源目录 {SOURCE_PATH} 不存在！")
             return
 
-        for channelid in os.listdir(source_path):
-            source_channel_dir = os.path.join(source_path, channelid)
-            target_channel_dir = os.path.join(target_path, channelid)
+        for channelid in os.listdir(SOURCE_PATH):
+            source_channel_dir = os.path.join(SOURCE_PATH, channelid)
+            target_channel_dir = os.path.join(TARGET_PATH, channelid)
 
             # 确保当前遍历的是文件夹，而不是文件
             if os.path.isdir(source_channel_dir):
