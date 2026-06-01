@@ -6,13 +6,13 @@ import configparser
 from tdl import run_tdl
 from scheduler import scheduler_loop
 from flask import Flask, render_template, request, jsonify
-
 app = Flask(__name__)
-
 # 全局变量
 IS_TASK_RUNNING = False
 TASK_LOCK = threading.Lock()
-CONFIG_PATH = "tdl.ini"
+secret_key = os.getenv("SECRET_KEY", '123456')
+LOG_PATH = os.getenv("LOG_PATH", 'tdl.log')
+CONFIG_PATH = os.getenv("CONFIG_PATH", 'tdl.ini')
 
 def load_global_config():
     """读取配置文件并更新到 Flask 的全局 app.config 中"""
@@ -41,15 +41,14 @@ def setup_app_logger():
     logger.propagate = False
     if not logger.handlers:
         file_handler = logging.handlers.RotatingFileHandler(
-            app.config.get('tdl_log_path'), maxBytes=10 * 1024 * 1024, backupCount=5, encoding='utf-8'
+            LOG_PATH, maxBytes=10 * 1024 * 1024, backupCount=5, encoding='utf-8'
         )
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
     return logger
 
-# 程序启动时，先加载一次初始配置
-load_global_config()
+# 初始化app_logger
 app_logger = setup_app_logger()
 
 # ================= 新增：读取日志文件末尾 N 行 =================
@@ -72,7 +71,7 @@ def run_download_task():
     global IS_TASK_RUNNING
     try:
         # 任务开始前清空日志
-        with open(app.config.get('tdl_log_path'), 'w', encoding='utf-8') as f:
+        with open(LOG_PATH, 'w', encoding='utf-8') as f:
             pass
         app_logger.info("========== 任务开始执行 ==========")
 
@@ -94,7 +93,7 @@ def index():
         with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             config_content = f.read()
     # 页面加载时，直接读取最新的 1000 行日志传给前端
-    recent_logs = get_last_n_lines(app.config.get('tdl_log_path'), 1000)
+    recent_logs = get_last_n_lines(LOG_PATH, 1000)
     return render_template('index.html', config_content=config_content, recent_logs=recent_logs)
 
 
@@ -103,7 +102,7 @@ def execute():
     global IS_TASK_RUNNING
     password = request.json.get('password')
 
-    if password != app.config.get('SECRET_KEY'):
+    if password != secret_key:
         return jsonify({"status": "error", "message": "密码错误！"})
 
     with TASK_LOCK:
@@ -145,12 +144,13 @@ def save_config():
 @app.route('/get_logs')
 def get_logs():
     """专门给前端提供最新日志的接口"""
-    logs = get_last_n_lines(app.config.get('tdl_log_path'), 1000)
+    logs = get_last_n_lines(LOG_PATH, 1000)
     # 将日志列表拼接成一个长字符串返回，方便前端直接渲染
     return jsonify({"logs": "\n".join(logs)})
 
 
 if __name__ == '__main__':
+    load_global_config()
     # 创建并启动定时任务线程
     if app.config.get('tdl_scheduler', 'false').lower() == 'true':
         task_thread = threading.Thread(target=scheduler_loop, args=(1800,), daemon=True)
