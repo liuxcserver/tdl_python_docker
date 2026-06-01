@@ -86,6 +86,7 @@ def process_channel(channel_id, script_dir):
 
     data['messages'] = filtered_messages
     filtered_json_path = os.path.join(script_dir, f"{channel_id}_filtered.json")
+
     with open(filtered_json_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
@@ -99,7 +100,9 @@ def process_channel(channel_id, script_dir):
     ]
     run_command_and_log(cmd_dl)
     push_log(f"频道 {channel_id} 下载完成。")
-
+    # 清理已经处理的json文件
+    os.remove(json_path)
+    os.remove(filtered_json_path)
 
 def process_urls(urls):
     """处理 URL 的下载逻辑"""
