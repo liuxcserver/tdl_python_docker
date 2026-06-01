@@ -4,6 +4,7 @@ import time
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 from tdl import run_tdl
+import logging
 import configparser
 
 app = Flask(__name__)
@@ -70,7 +71,7 @@ def execute():
     password = request.json.get('password')
 
     # 这里替换为你的实际密码验证逻辑
-    if password != "123456":
+    if password != "5952":
         return jsonify({"status": "error", "message": "密码错误！"})
 
     with TASK_LOCK:
@@ -106,4 +107,4 @@ def handle_connect():
 
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=8888, debug=True, allow_unsafe_werkzeug=True)
