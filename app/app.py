@@ -115,6 +115,13 @@ def save_config():
         f.write(content)
     return jsonify({"status": "success"})
 
+@app.route('/get_logs')
+def get_logs():
+    """专门给前端提供最新日志的接口"""
+    logs = get_last_n_lines(LOG_PATH, 1000)
+    # 将日志列表拼接成一个长字符串返回，方便前端直接渲染
+    return jsonify({"logs": "\n".join(logs)})
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8888, debug=True)
