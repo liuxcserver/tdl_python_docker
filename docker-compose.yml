@@ -14,7 +14,7 @@ services:
       - TDL_PROXY=socks5://tdl:123456@localhost:1080
       - TDL_THREADS=4    # 同时下载的任务数量
       - TDL_LIMIT=4      # 单个任务的下载线程数
-      - SECRET_KEY=5952   # 任务开启密码
+      - SECRET_KEY=123456   # 任务开启密码
       - START_TASK=True		# 上传任务是否开启
       - SOURCE_PATH=/source_path #本地下载目录
       - TARGET_PATH=/target_path #远端上传目录
