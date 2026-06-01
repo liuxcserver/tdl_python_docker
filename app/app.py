@@ -48,9 +48,9 @@ def setup_app_logger():
         logger.addHandler(file_handler)
     return logger
 
-
+# 程序启动时，先加载一次初始配置
+load_global_config()
 app_logger = setup_app_logger()
-
 
 # ================= 新增：读取日志文件末尾 N 行 =================
 def get_last_n_lines(filepath, n=1000):
@@ -151,8 +151,6 @@ def get_logs():
 
 
 if __name__ == '__main__':
-    # 程序启动时，先加载一次初始配置
-    load_global_config()
     # 创建并启动定时任务线程
     if app.config.get('tdl_scheduler', 'false').lower() == 'true':
         task_thread = threading.Thread(target=scheduler_loop, args=(1800,), daemon=True)
