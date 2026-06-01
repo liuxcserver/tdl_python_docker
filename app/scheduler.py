@@ -36,7 +36,7 @@ def my_scheduled_task():
 
                 # 遍历该频道文件夹下的所有文件
                 for filename in os.listdir(source_channel_dir):
-                    # 核心需求：排除后缀为 .tdl 的文件
+                    # 核心需求：排除后缀为 .tmp 的文件
                     if filename.endswith('.tmp'):
                         continue
 
@@ -46,6 +46,8 @@ def my_scheduled_task():
                         try:
                             # subprocess 执行cp命令
                             subprocess.run(['cp', source_file, target_channel_dir], check=True)
+                            # 上传完成后清理文件
+                            os.remove(source_file)
                             print(f"成功复制: {channelid}/{filename}")
                         except Exception as e:
                             print(f"复制失败 {channelid}/{filename}: {e}")
