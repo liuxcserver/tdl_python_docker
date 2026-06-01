@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TDL 任务管理控制台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f4f6f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
+        .card-header { background-color: #fff; border-bottom: 1px solid #eee; border-radius: 12px 12px 0 0 !important; font-weight: 600; padding: 15px 20px; }
+        /* 左侧只读展示框样式 */
+        #config-display { height: 65vh; font-family: 'Consolas', 'Monaco', monospace; font-size: 14px; background-color: #f8f9fa; border: 1px solid #e9ecef; resize: none; }
+        /* 弹窗内的编辑框样式 */
+        #config-editor { height: 50vh; font-family: 'Consolas', 'Monaco', monospace; font-size: 14px; background-color: #fcfcfc; }
+        #log-box { height: 65vh; overflow-y: auto; background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 8px; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; }
+        .log-time { color: #888; margin-right: 8px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="#"><i class="bi bi-terminal-fill me-2"></i>TDL 任务管理控制台</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row g-4">
+            <!-- 左侧：配置文件展示区（只读） -->
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-file-earmark-code me-2"></i>配置文件 (tdl.conf)</span>
+                        <!-- 点击此按钮打开编辑弹窗 -->
+                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editConfigModal">
+                            <i class="bi bi-pencil-square me-1"></i>编辑配置
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <textarea id="config-display" class="form-control" readonly placeholder="正在加载配置..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：操作与日志监控区（保持不变） -->
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-activity me-2"></i>实时日志监控</span>
+                        <div>
+                            <div class="form-check form-switch form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="auto-scroll" checked>
+                                <label class="form-check-label small" for="auto-scroll">自动滚动</label>
+                            </div>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="clearLogs()"><i class="bi bi-trash me-1"></i>清空</button>
+                        </div>
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <button class="btn btn-success mb-3 w-100" data-bs-toggle="modal" data-bs-target="#passwordModal">
+                            <i class="bi bi-play-fill me-1"></i> 执行下载任务
+                        </button>
+                        <div id="log-box" class="flex-grow-1"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. 执行任务的密码输入模态框 -->
+    <div class="modal fade" id="passwordModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">身份验证</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="inputPassword" class="form-label">请输入执行密码</label>
+                        <input type="password" class="form-control" id="inputPassword" placeholder="请输入密码以启动任务">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="submitPassword()">确认执行</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 新增：配置文件编辑模态框 -->
+    <div class="modal fade" id="editConfigModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">编辑配置文件</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <textarea id="config-editor" class="form-control" placeholder="在此处修改配置内容..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveConfigFromModal()">确定保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 消息轻提示 (Toast) -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <i class="bi bi-info-circle-fill me-2 text-primary"></i>
+                <strong class="me-auto">系统提示</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="toastMessage">操作成功！</div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

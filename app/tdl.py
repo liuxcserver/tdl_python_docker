@@ -3,9 +3,12 @@ import json
 import subprocess
 import configparser
 import logging
+from queue import Queue
 
-# 配置日志：写入 tdl_execution.log 文件，编码为 utf-8
-# 格式：时间 - 日志级别 - 具体信息
+# 全局队列，用于存放实时日志，供 app.py 中的 WebSocket 读取
+log_queue = Queue()
+
+# 配置基础日志（同时写入文件）
 logging.basicConfig(
     filename='tdl_execution.log',
     level=logging.INFO,
@@ -14,10 +17,16 @@ logging.basicConfig(
 )
 
 
+def push_log(message):
+    """将日志同时写入文件、打印到控制台、推送到前端队列"""
+    print(message)
+    logging.info(message)
+    log_queue.put(message)
+
+
 def load_config(config_file):
-    """读取 py.properties 配置文件"""
+    """读取配置文件"""
     config = configparser.ConfigParser()
-    # 兼容没有 section 的 properties 文件格式
     with open(config_file, encoding='utf-8') as f:
         config.read_string('[default]\n' + f.read())
     return config['default']
@@ -30,114 +39,126 @@ def get_existing_files(target_dir):
     return {f for f in os.listdir(target_dir) if os.path.isfile(os.path.join(target_dir, f))}
 
 
-def process_channel(channel_id, source_path, target_path):
+def run_command_and_log(cmd):
+    """执行 shell 命令，并实时将输出推送到日志队列"""
+    push_log(f"🚀 正在执行命令: {' '.join(cmd)}")
+
+    process = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True, bufsize=1, encoding='utf-8'
+    )
+
+    with process.stdout:
+        for line in process.stdout:
+            line = line.strip()
+            if line:
+                push_log(line)  # 实时推送 tdl 的返回信息
+
+    process.wait()
+    if process.returncode != 0:
+        error_msg = f"❌ 命令执行失败，退出码: {process.returncode}"
+        push_log(error_msg)
+        raise subprocess.CalledProcessError(process.returncode, cmd)
+
+    push_log("✅ 命令执行完毕。")
+
+
+def process_channel(channel_id, source_path, target_path, script_dir):
     """处理单个频道的下载逻辑"""
     channel_source_dir = os.path.join(source_path, str(channel_id))
     channel_target_dir = os.path.join(target_path, str(channel_id))
 
-    # 确保源目录存在，用于存放临时的 json 文件
     os.makedirs(channel_source_dir, exist_ok=True)
-    # 脚本目录
-    script_dir = os.path.dirname(__file__)
 
     # 1. 导出 JSON 文件
     json_path = os.path.join(script_dir, f"{channel_id}.json")
-    logging.info(f"正在导出频道 {channel_id} 的信息到 {json_path}...")
-    # 假设 tdl 有导出命令，这里用 tdl export 举例，请替换为你实际使用的导出命令
-    # tdl chat export -c CHAT -o /path/to/output.json
-    subprocess.run(['tdl', 'chat', 'export', '-c', str(channel_id), '-o', json_path], check=True)
+    push_log(f"正在导出频道 {channel_id} 的信息到 {json_path}...")
+
+    cmd_export = ['tdl', 'chat', 'export', '-c', str(channel_id), '-o', json_path]
+    run_command_and_log(cmd_export)
 
     # 2. 读取并过滤 JSON 数据
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    # 获取目标目录下已有的文件
     existing_files = get_existing_files(channel_target_dir)
-
-    # 过滤掉已存在的文件
-    # 规则：target_path 下存在 "messageId_filename" 格式的文件则跳过
     filtered_messages = []
     for msg in data.get('messages', []):
         msg_id = msg['id']
         file_name = msg['file']
         target_file_name = f"{msg_id}_{file_name}"
-
         if target_file_name not in existing_files:
             filtered_messages.append(msg)
 
     if not filtered_messages:
-        logging.info(f"频道 {channel_id} 的所有文件均已下载，跳过。")
+        push_log(f"频道 {channel_id} 的所有文件均已下载，跳过。")
         return
 
-    # 将过滤后的数据写到 channel_id_filtered.json
     data['messages'] = filtered_messages
     filtered_json_path = os.path.join(script_dir, f"{channel_id}_filtered.json")
     with open(filtered_json_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
     # 3. 执行下载命令
-    # 例子: tdl dl -f channelid.json --template "{{ .MessageID }}_{{ .FileName }}" -d $source_path/channelId
-    logging.info(f"开始下载频道 {channel_id} 的新文件...")
-    cmd = [
+    push_log(f"开始下载频道 {channel_id} 的新文件...")
+    cmd_dl = [
         'tdl', 'dl',
         '-f', filtered_json_path,
         '--template', '{{ .MessageID }}_{{ .FileName }}',
         '-d', channel_source_dir
     ]
-    subprocess.run(cmd, check=True)
-    logging.info(f"频道 {channel_id} 下载完成。")
+    run_command_and_log(cmd_dl)
+    push_log(f"频道 {channel_id} 下载完成。")
 
 
-def process_urls(urls, source_path):
+def process_urls(urls,  source_path):
     """处理 URL 的下载逻辑"""
-    # 修正：使用 target_path 下的 default 目录，与 channel 逻辑保持一致
     default_source_path = os.path.join(source_path, "default")
     os.makedirs(default_source_path, exist_ok=True)
 
-    logging.info(f"开始下载 {len(urls)} 个 URL 到 {default_source_path}...")
+    push_log(f"开始下载 {len(urls)} 个 URL 到 {default_source_path}...")
 
-    # 注意：这里根据你的需求描述，下载目录应为 target_path/default
     cmd = ['tdl', 'dl']
-
-    # 遍历 urls 列表，为每个 url 前面添加 '-u' 参数
     for url in urls:
         cmd.extend(['-u', url.strip()])
-
-    # 添加模板和下载目录参数
     cmd.extend([
         '--template', "{{ .DialogID }}_{{ .MessageID }}_{{ .FileName }}",
         '-d', default_source_path
     ])
-    subprocess.run(cmd, check=True)
-    logging.info("URL 下载完成。")
+    run_command_and_log(cmd)
+    push_log("URL 下载完成。")
 
 
-def run_download_task():
+def run_tdl():
     """对外暴露的纯业务执行入口"""
-    logging.info("开始执行下载任务...")
+    push_log("📋 开始执行下载任务...")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # 加载配置
-    config = load_config('tdl.conf')
+    try:
+        config = load_config('tdl.conf')
+        source_path = config['source_path']
+        target_path = config['target_path']
 
-    source_path = config['source_path']
-    target_path = config['target_path']
+        os.makedirs(source_path, exist_ok=True)
+        os.makedirs(target_path, exist_ok=True)
 
-    # 确保基础目录存在
-    os.makedirs(source_path, exist_ok=True)
-    os.makedirs(target_path, exist_ok=True)
+        # 处理 Channel 下载
+        channel_ids = [cid.strip() for cid in config['channel'].split(',')]
+        for cid in channel_ids:
+            if cid:  # 防止空字符串
+                process_channel(cid, source_path, target_path, script_dir)
 
-    # 处理 Channel 下载
-    channel_ids = [cid.strip() for cid in config['channel'].split(',')]
-    for cid in channel_ids:
-        process_channel(cid, source_path, target_path)
+        # 处理 URL 下载
+        urls = [url.strip() for url in config['url'].split(',')]
+        if urls and urls[0]:  # 防止空字符串
+            process_urls(urls, source_path, target_path, script_dir)
 
-    # 处理 URL 下载
-    urls = [url.strip() for url in config['url'].split(',')]
-    process_urls(urls, source_path)
+        # 处理收藏下载
+        favorites = config['favorites']
+        if favorites:
+            process_channel('favorites', source_path, target_path, script_dir)
 
-    # 处理收藏下载
-    favorites = config['favorites']
-    if favorites:
-        process_channel('favorites', source_path, target_path)
-
-    logging.info("所有下载任务执行完毕。")
+        push_log("🎉 所有下载任务执行完毕！")
+    except Exception as e:
+        push_log(f"❌ 任务执行出错: {str(e)}")
+        logging.exception("任务执行详细错误堆栈:")

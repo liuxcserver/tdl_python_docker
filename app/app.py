@@ -1,88 +1,109 @@
-# app.py
 import os
-from flask import Flask, request, jsonify, render_template_string, redirect, url_for, flash
-from tdl import run_download_task
+import threading
+import time
+from flask import Flask, render_template, request, jsonify
+from flask_socketio import SocketIO, emit
+from tdl import run_tdl
+import configparser
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your_secret_key_here'
+socketio = SocketIO(app, cors_allowed_origins="*")
 
-app = Flask(__name__)
-app.secret_key = 'some_secret_key_for_flash_messages'  # 用于在网页上显示提示信息
-
-# 定义一个简单的 HTML 网页模板
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>下载任务执行器</title>
-    <style>
-        body { font-family: Arial, sans-serif; display: flex; justify-content: center; padding-top: 50px; }
-        .container { width: 300px; padding: 20px; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        input[type="password"] { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background-color: #218838; }
-        .message { color: red; margin-bottom: 10px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>执行下载任务</h2>
-        <!-- 显示执行后的提示信息 -->
-        {% with messages = get_flashed_messages() %}
-          {% if messages %}
-            {% for message in messages %}
-              <div class="message">{{ message }}</div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
-
-        <!-- 密码输入表单 -->
-        <form action="/execute" method="post">
-            <label for="password">请输入执行密码：</label>
-            <input type="password" id="password" name="password" required>
-            <button type="submit">确认执行</button>
-        </form>
-    </div>
-</body>
-</html>
-"""
+# 全局变量
+IS_TASK_RUNNING = False
+TASK_LOCK = threading.Lock()
+CONFIG_PATH = "tdl.conf"
+LOG_PATH = "tdl_execution.log"
 
 
-# 1. 访问根目录时，展示带有密码输入框的网页
-@app.route('/')
-def index():
-    return render_template_string(HTML_TEMPLATE)
+# 读取配置文件
+def read_config():
+    if not os.path.exists(CONFIG_PATH):
+        return ""
+    with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+        return f.read()
 
 
-# 2. 处理网页表单提交的密码
-@app.route('/execute', methods=['POST'])
-def execute_task():
-    # 获取网页表单中输入框（name="password"）的值
-    input_password = request.form.get('password')
+# 写入配置文件
+def write_config(content):
+    with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+        f.write(content)
 
-    # 从环境变量中获取真实的安全密码
-    SAFE_PASSWORD = os.getenv('API_PASSWORD')
 
-    if not SAFE_PASSWORD:
-        flash("服务器未配置安全密码，请联系管理员！")
-        return redirect(url_for('index'))
-
-    # 验证密码
-    if input_password != SAFE_PASSWORD:
-        flash("密码错误，无权执行任务！")
-        return redirect(url_for('index'))
+# 模拟执行任务的函数 (你需要将这里替换为你 downloader.py 中的逻辑)
+def run_download_task():
+    global IS_TASK_RUNNING
 
     try:
-        # 密码正确，调用业务层的下载函数
-        run_download_task()
-        flash("✅ 下载任务已成功触发并执行完毕！")
+        run_tdl()
     except Exception as e:
-        flash(f"❌ 任务执行出错: {str(e)}")
+        socketio.emit('log_update', {'data': f"[Error] {str(e)}"})
+    finally:
+        IS_TASK_RUNNING = False
 
-    # 执行完后跳回首页（并带上上面的提示信息）
-    return redirect(url_for('index'))
+
+@app.route('/')
+def index():
+    config_content = read_config()
+    return render_template('index.html', config_content=config_content)
+
+
+# 接口：获取配置
+@app.route('/get_config', methods=['GET'])
+def get_config():
+    return jsonify({"content": read_config()})
+
+
+# 接口：保存配置
+@app.route('/save_config', methods=['POST'])
+def save_config():
+    content = request.json.get('content', '')
+    write_config(content)
+    return jsonify({"status": "success"})
+
+
+# 接口：执行任务
+@app.route('/execute', methods=['POST'])
+def execute():
+    global IS_TASK_RUNNING
+    password = request.json.get('password')
+
+    # 这里替换为你的实际密码验证逻辑
+    if password != "123456":
+        return jsonify({"status": "error", "message": "密码错误！"})
+
+    with TASK_LOCK:
+        if IS_TASK_RUNNING:
+            return jsonify({"status": "error", "message": "任务正在运行中，请勿重复提交！"})
+
+        IS_TASK_RUNNING = True
+        # 在后台线程运行任务
+        thread = threading.Thread(target=run_download_task)
+        thread.start()
+
+    return jsonify({"status": "success", "message": "任务已启动"})
+
+
+@app.route('/get_history_logs', methods=['GET'])
+def get_history_logs():
+    log_path = "tdl_execution.log"
+    if not os.path.exists(log_path):
+        return jsonify({"logs": []})
+
+    try:
+        with open(log_path, 'r', encoding='utf-8') as f:
+            all_logs = f.readlines()
+            last_logs = all_logs[-200:]  # 只返回最后200行
+            return jsonify({"logs": [log.strip() for log in last_logs]})
+    except Exception as e:
+        return jsonify({"logs": [], "error": str(e)})
+
+# WebSocket：实时日志推送
+@socketio.on('connect')
+def handle_connect():
+    emit('log_update', {'data': '[系统] 已连接到服务器'})
+
 
 if __name__ == '__main__':
-    # 启动服务，默认访问地址为 http://127.0.0.1:8888
-    app.run(host='0.0.0.0', port=8888)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
