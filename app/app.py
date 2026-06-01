@@ -149,14 +149,13 @@ def get_logs():
     # 将日志列表拼接成一个长字符串返回，方便前端直接渲染
     return jsonify({"logs": "\n".join(logs)})
 
+# 加载配置
+load_global_config()
+# 创建并启动定时任务线程
+if START_TASK:
+    task_thread = threading.Thread(target=scheduler_loop, args=(1800,), daemon=True)
+    task_thread.start()
+    app_logger.info("========== 上传任务已开启 ==========")
 
 if __name__ == '__main__':
-    # 加载配置
-    load_global_config()
-    # 创建并启动定时任务线程
-    if START_TASK:
-        task_thread = threading.Thread(target=scheduler_loop, args=(1800,), daemon=True)
-        task_thread.start()
-        app_logger.info("========== 上传任务已开启 ==========")
-
-    app.run(host='0.0.0.0', port=8888, debug=True)
+    app.run(host='0.0.0.0', port=8888)
