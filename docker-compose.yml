@@ -3,7 +3,7 @@ services:
     image: liuxcserver/tdl_python_docker:latest
     container_name: tdl_python_docker
     volumes:
-      - /vol1/1000/space/docker/tdl/config:/root/.tdl # 保持配置持久化
+      - /vol1/1000/space/docker/tdl_python_docker/config:/root/.tdl # 保持配置持久化
       - /vol1/1000/space/docker/tdl_python_docker/download:/source_path
       - /vol02/1001-1-900c4d77/TDL:/target_path
     ports:
