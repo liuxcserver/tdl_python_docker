@@ -11,7 +11,7 @@ services:
     network_mode: bridge
     restart: unless-stopped
     environment:
-      - TDL_PROXY=socks5://liuxc:lxc8722@192.168.100.100:41080
+      - TDL_PROXY=socks5://tdl:123456@localhost:1080
       - TDL_THREADS=4    # 同时下载的任务数量
       - TDL_LIMIT=4      # 单个任务的下载线程数
       - SECRET_KEY=5952   # 任务开启密码
