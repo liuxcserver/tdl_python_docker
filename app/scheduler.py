@@ -56,5 +56,5 @@ def my_scheduled_task():
         print(f"[定时任务] 执行出错: {e}")
 
 def log_clean_task():
-    subprocess.run(['rm -rf /app/tdl.log.*'], check=True)
+    subprocess.run('rm -rf /app/tdl.log.*', shell=True, check=True)
     print("历史日志清理完成!")
