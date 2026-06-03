@@ -2,9 +2,16 @@ import os
 import json
 import subprocess
 import configparser
-
+import re
 # 配置基础日志（同时写入文件）
 import logging
+
+def strip_ansi_codes(text: str) -> str:
+    """从字符串中移除ANSI转义序列"""
+    # \x1b\[ 匹配 ESC[ ， [0-9;]* 匹配参数， m 表示颜色码结束
+    ansi_escape_pattern = re.compile(r'\x1b\[[0-9;]*m')
+    return ansi_escape_pattern.sub('', text)
+
 
 SOURCE_PATH = os.getenv("SOURCE_PATH", '/source_path')
 TARGET_PATH = os.getenv("TARGET_PATH", '/target_path')
@@ -12,7 +19,7 @@ logger = logging.getLogger('my_app')
 
 def push_log(message):
     """将日志同时写入文件、打印到控制台、推送到前端队列"""
-    logger.info(message)
+    logger.info(strip_ansi_codes(message))
 
 def load_config(config_file):
     """读取配置文件"""
