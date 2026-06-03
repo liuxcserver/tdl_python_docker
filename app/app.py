@@ -93,8 +93,8 @@ def index():
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             config_content = f.read()
-    # 页面加载时，直接读取最新的 1000 行日志传给前端
-    recent_logs = get_last_n_lines(LOG_PATH, 1000)
+    # 页面加载时，直接读取最新的 100 行日志传给前端
+    recent_logs = get_last_n_lines(LOG_PATH, 100)
     return render_template('index.html', config_content=config_content, recent_logs=recent_logs)
 
 

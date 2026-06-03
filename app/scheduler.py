@@ -10,6 +10,7 @@ def scheduler_loop(interval_seconds=1800):
     while True:
         # 执行任务
         my_scheduled_task()
+        log_clean_task()
         # 睡眠指定的时间
         # 使用 time.sleep 而不是 busy-waiting，不会占用 CPU
         time.sleep(interval_seconds)
@@ -53,3 +54,7 @@ def my_scheduled_task():
                             print(f"复制失败 {channelid}/{filename}: {e}")
     except Exception as e:
         print(f"[定时任务] 执行出错: {e}")
+
+def log_clean_task():
+    subprocess.run(['rm -rf /app/tdl.log.*'], check=True)
+    print("历史日志清理完成!")
